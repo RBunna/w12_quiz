@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../models/grocery.dart';
+
+Uuid _uuid = Uuid();
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -12,7 +15,6 @@ class NewItem extends StatefulWidget {
 }
 
 class _NewItemState extends State<NewItem> {
-
   // Default settings
   static const defautName = "New grocery";
   static const defaultQuantity = 1;
@@ -41,12 +43,72 @@ class _NewItemState extends State<NewItem> {
     _quantityController.dispose();
   }
 
-  void onReset() {
-    // Will be implemented later - Reset all fields to the initial values
+  void onReset() async {
+    // Reset all fields to the initial values
+    if ((_nameController.text.isNotEmpty ||
+            _quantityController.text.isNotEmpty) ||
+        (_nameController.text != defautName ||
+            _quantityController.text != defaultQuantity.toString() ||
+            _selectedCategory != defaultCategory)) {
+      bool? isDiscard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Discard changes'),
+          content: const Text('Your progresses will be lose!'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Discard'),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+
+      if (isDiscard != null && isDiscard) {
+        setState(() {
+          _nameController.text = defautName;
+          _quantityController.text = defaultQuantity.toString();
+          _selectedCategory = defaultCategory;
+        });
+      }
+    }
   }
 
   void onAdd() {
-    // Will be implemented later - Create and return the new grocery
+    // Create and return the new grocery
+    String name = _nameController.text;
+    int? quantity = int.tryParse(_quantityController.text);
+
+    if (name.isEmpty || quantity == null || quantity <= 0) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Invalid input'),
+          content: const Text('Empty name or invalid quantity!'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+    } else {
+      Grocery newGrocery = Grocery(
+        id: _uuid.v4(),
+        name: name,
+        quantity: quantity,
+        category: _selectedCategory,
+      );
+
+      Navigator.pop(context, newGrocery);
+    }
   }
 
   @override
@@ -76,7 +138,24 @@ class _NewItemState extends State<NewItem> {
                 Expanded(
                   child: DropdownButtonFormField<GroceryCategory>(
                     initialValue: _selectedCategory,
-                    items: [  ],
+                    items: GroceryCategory.values
+                        .map(
+                          (cat) => DropdownMenuItem<GroceryCategory>(
+                            value: cat,
+                            child: Row(
+                              spacing: 8,
+                              children: [
+                                Container(
+                                  color: cat.color,
+                                  width: 15,
+                                  height: 15,
+                                ),
+                                Text(cat.name),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
@@ -93,10 +172,7 @@ class _NewItemState extends State<NewItem> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(onPressed: onReset, child: const Text('Reset')),
-                ElevatedButton(
-                  onPressed: onAdd,
-                  child: const Text('Add Item'),
-                ),
+                ElevatedButton(onPressed: onAdd, child: const Text('Add Item')),
               ],
             ),
           ],
